@@ -953,9 +953,17 @@ def developer_dirs():
         pass
     found += [str(p / 'Contents/Developer') for p in sorted(Path('/Applications').glob('Xcode*.app'))]
     found += [str(p / 'Contents/Developer') for p in sorted(Path.home().glob('Applications/Xcode*.app'))]
-    # An Xcode kept on another volume, at its top or one folder down (Spotlight may not index it)
-    found += [str(p / 'Contents/Developer') for p in sorted(Path('/Volumes').glob('*/Xcode*.app'))]
-    found += [str(p / 'Contents/Developer') for p in sorted(Path('/Volumes').glob('*/*/Xcode*.app'))]
+    # An Xcode kept on another volume, at its top or one folder down (Spotlight may not index it).
+    # ponytail: a blind scan of every mount hangs on placeholder volumes (hidden Parallels/NTFS
+    # drives wait for a switched-off VM) and the firmlinked system volume is covered above.
+    for vol in sorted(Path('/Volumes').iterdir()):
+        if vol.name.endswith('.hidden') or vol.name == 'Macintosh HD':
+            continue
+        try:
+            found += [str(p / 'Contents/Developer') for p in vol.glob('Xcode*.app')]
+            found += [str(p / 'Contents/Developer') for p in vol.glob('*/Xcode*.app')]
+        except OSError:
+            pass
     try:
         spotlight = subprocess.check_output(['mdfind', "kMDItemCFBundleIdentifier == 'com.apple.dt.Xcode'"], text=True,
                                             stderr=subprocess.DEVNULL)

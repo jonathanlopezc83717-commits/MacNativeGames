@@ -284,7 +284,10 @@ class TranslationCache:
                 (staging/name).unlink()
             except FileNotFoundError:
                 pass
-            os.link(self.folder/name, staging/name)
+            try:
+                os.link(self.folder/name, staging/name)
+            except OSError:   # ponytail: volumes without hard links (ExFAT): a copy serves the same purpose
+                shutil.copyfile(self.folder/name, staging/name)
         return dict(ok=True)
 
     def put(self, variant, reply, staging):
@@ -297,6 +300,8 @@ class TranslationCache:
                 os.link(staging/name, self.folder/name)
             except FileExistsError:   # another packaging sharing the folder put the same translation
                 pass
+            except OSError:   # ponytail: volumes without hard links (ExFAT): a copy serves the same purpose
+                shutil.copyfile(staging/name, self.folder/name)
             self.digests[name] = digest((staging/name).read_bytes())
 
     def digest(self, name, path):
