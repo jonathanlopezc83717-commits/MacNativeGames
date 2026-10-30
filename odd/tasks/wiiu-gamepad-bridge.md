@@ -66,12 +66,32 @@ unsupported since macOS 10.15).
 
 ## Tasks
 
-- [ ] T1 — `bridge_map.h` (pure C: VPAD hold bits + sticks → HID report layout) + probe test
-      + Python test wrapper. Route: writer (delegated). Evidence: 3+ files.
-- [ ] T2 — `tools/wiiu-gamepad-bridge/wiiu_bridge.m` (UDP receive, JSON reassembly/parse,
-      IOHIDUserDevice publish, CLI main). Route: writer (delegated). Evidence: non-trivial new file.
-- [ ] T3 — Loopback integration test (UDP sender → bridge → assert HID report), README/docs
-      blurb, full `make check` + compile verification, work-unit commit(s).
+- [x] T1 — `bridge_map.h` (pure C: VPAD hold bits + sticks → HID report layout) + probe test
+      + Python test wrapper. DONE (writer). Verified by parent spot check: probe 35/35.
+- [x] T2 — `tools/wiiu-gamepad-bridge/wiiu_bridge.m` (UDP receive, JSON reassembly/parse,
+      IOHIDUserDevice publish, CLI main). DONE (writer). Compiles clean under -Werror.
+- [~] T3 — Loopback integration test: DONE (split-datagram reassembly asserted, passes).
+      Docs blurb: DONE (tools/wiiu-gamepad-bridge/README.md). Work-unit commit: DONE (9d2aab2).
+      **Manual console verification: BLOCKED** — see Blocker below.
+
+## Blocker: macOS 26 restricted entitlement (decision needed)
+
+`IOHIDUserDeviceCreateWithProperties` returns NULL with `kIOReturnNotPrivileged` (0xe00002c2)
+on macOS 26.6 — independently reproduced by the parent with a minimal probe. Publishing a
+virtual HID device now requires the **restricted** entitlement
+`com.apple.developer.hid.virtual.device` (adhoc-signing with it = SIGKILL without a
+provisioning profile). The bridge degrades gracefully (receive + `--print-reports`) and
+says so on stderr.
+
+Also environmental (pre-existing, not caused by this change): the default toolchain's
+MacOSX27.0.sdk .tbd files break the installed linker (tapi arch-variant rejection);
+`make check` is red on the base branch too. Pinned `SDKROOT=MacOSX26.5.sdk` makes the
+whole suite green (333 tests + 2 new).
+
+Fallback options if the entitlement is not obtainable:
+1. In-process integration: runtime reads the MiisendU UDP directly (full fidelity,
+   scoped to MacNativeGames games).
+2. CGEvent keyboard/mouse injection standalone (works everywhere, loses analog sticks).
 
 ## Route declaration
 
@@ -86,4 +106,9 @@ unsupported since macOS 10.15).
 - 2026-10-25: research done inline (UsendMii binary inspected = i386 Delphi; protocol
   documented from Crayon2000/MiisendU-Wii-U source: vpad_to_json.cpp, udp.cpp, main.cpp;
   port 4242 default; JSON split at 1400 bytes). Discovery saved to Engram.
-- Next: launch T1+T2 writer.
+- 2026-10-25: T1+T2+T3 code done by delegated writer (general, ses_e89752dc); parent spot
+  checks: C probe 35/35, loopback OK, .m compiles -Werror (all under SDKROOT=MacOSX26.5.sdk
+  due to the pre-existing 27.0 SDK linker breakage). Work-unit commit 9d2aab2 on
+  feat/wiiu-gamepad-bridge. 540 authored lines (over the ~400 advisory; kept full tests).
+- 2026-10-25: parent independently reproduced the entitlement blocker (IOHIDUserDevice NULL
+  from a minimal probe). Next: user decision on fallback vs entitled build.
