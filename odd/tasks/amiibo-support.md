@@ -40,8 +40,13 @@ The host stubs every `nn::nfp::*` symbol with `0x8073` ("the host has no NFC rea
 - `make check` green; changed files compile warning-free with `-Werror`.
 
 ## Progress
-- [ ] T1 … T5 pending.
+- [x] T1 — nfp state machine in `applet_host.c` (single device/handle 0, events, TagFound/TagMounted, GetTagInfo 0x58 / GetModelInfo 0x40 byte rules, dump load+validate, `runtime_amiibo_set_path`). Evidence: commit `15c39521`; `nm` shows `_runtime_amiibo_set_path` in both runtimes.
+- [x] T2 — BotW's 7 extra nfp overrides (#ifdef GAME_BOTW, mangled names extracted from the installed main binaries), key 8 (Mac keycode 28 — verified non-sequential in SDK Events.h: kVK_ANSI_8=0x1C) → NSOpenPanel picker in frontend.m, `amiibo.txt` via un-static'd `setting_read`/`setting_write`, shortcut help line en/zh.
+- [x] T3 — README: known-issues line + keys paragraph (key 8), touch prompt list.
+- [x] T4 — `make check` with `SDKROOT=MacOSX26.5.sdk` + work-folder venv: **Ran 333 tests, OK** (base failures were the known CLT-27 tapi linker bug + missing `cryptography`; both environmental). Syntax compile `-Werror` clean for applet_host.c (both GAME_BOTW variants), input.c, frontend.m, gamepad.m. Incremental `make build/totk-native` linked exit 0 (writer) and again after final rsync (up to date).
+- [x] T5 — Runtime rebuilt for both games in the existing work folders (`SDKROOT=...26.5.sdk`): TOTK `build/totk-native` (22.6 MB), BotW `build/totk-native-botw160` (15.3 MB), each with `_runtime_amiibo_pick`/`_runtime_amiibo_set_path` in `nm`. Original game inputs are no longer at the recorded SSD paths, so the app step was done the way build_app.py does it for a runtime-only change: binary copied over `Contents/Resources/totk/build/totk-native` in both apps (previous binaries backed up as `*.prev-amiibo` in the work folders), then `codesign --force --sign -` + `codesign --verify --strict` — both pass. Symbol count in installed apps: 2 each.
 
 ## Route / delegation record
-- Route: delegated direct (writer trigger: 2+ non-trivial files + mapping done by explore agent).
-- TDD mode: off (source: prior session decision); runner for gate: `make check`.
+- Route: delegated direct (writer trigger: 2+ non-trivial files + mapping done by explore agent); research delegated to general (source-backed nfp fact sheet); rebuild ran inline.
+- TDD mode: off (source: prior session decision); gate command: `SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk make check PYTHON="$HOME/Games/TOTK_build/venv/bin/python"`.
+- Review: RDD on; assess medium/262 lines/under_budget → deferred to slice close.
