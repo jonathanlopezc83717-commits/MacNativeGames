@@ -74,7 +74,8 @@ static int32_t stronger_axis(int32_t a, int32_t b) {
 }
 
 /* Settings the keys change (6: controller type, 7: mouse mode), one word each in a file next to controls.txt
-   (TOTK_CONTROLS; a run without it, such as a test, neither reads nor writes them), so they hold for the next launch. */
+   (TOTK_CONTROLS; a run without it, such as a test, neither reads nor writes them), so they hold for the next launch.
+   setting_read / setting_write are shared with the amiibo.txt path (applet_host.c, key 8). */
 static int setting_path(const char *name, char *out, size_t size) {
     const char *controls = getenv("TOTK_CONTROLS");
     if (!controls || !*controls) return 0;
@@ -84,7 +85,7 @@ static int setting_path(const char *name, char *out, size_t size) {
     return n > 0 && (size_t)n < size;
 }
 
-static int setting_read(const char *name, char *word, size_t size, char *path, size_t path_size) {   /* 1: read */
+int setting_read(const char *name, char *word, size_t size, char *path, size_t path_size) {   /* 1: read */
     if (!setting_path(name, path, path_size)) return 0;
     FILE *f = fopen(path, "r");
     if (!f) return 0;   /* never changed: the default */
@@ -94,7 +95,7 @@ static int setting_read(const char *name, char *word, size_t size, char *path, s
     return 1;
 }
 
-static void setting_write(const char *name, const char *word, const char *what) {
+void setting_write(const char *name, const char *word, const char *what) {
     char path[4096], temp[4200];
     if (!setting_path(name, path, sizeof path)) return;
     snprintf(temp, sizeof temp, "%s.tmp", path);
