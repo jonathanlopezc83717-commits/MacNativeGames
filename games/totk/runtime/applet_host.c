@@ -2,8 +2,10 @@
    Client-side SDK code (PlayReport encoding, keyboard presets, diag logging) runs unchanged; only the
    calls that would talk to system services are taken here. */
 #include "runtime.h"
+#include "amiibo_uuid.h"
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* ---------- nn::oe ---------- */
@@ -89,8 +91,17 @@ static void nfp_load_dump(void) {
         fprintf(stderr, "[totk] amiibo: %s failed the NTAG215 checks (BCC or byte 0x5B)\n", path);
         return;
     }
+    /* A fresh UUID per load (Initialize and every StartDetection, i.e. per scan), on by default: the games key
+       their once-a-day amiibo rule on it, so the dump's own UUID would block a second scan until tomorrow.
+       The amiibo type at 0x54.. is untouched (amiibo_uuid.h). TOTK_AMIIBO_RANDOM_UID=0 presents the real UUID. */
+    int random_uuid = amiibo_random_uuid_enabled(getenv("TOTK_AMIIBO_RANDOM_UID"));
+    if (random_uuid) {
+        unsigned char uid[7];
+        arc4random_buf(uid, sizeof uid);
+        amiibo_randomize_uuid(nfp_dump, uid);
+    }
     nfp_dump_ok = 1;
-    fprintf(stderr, "[totk] amiibo: %s\n", path);
+    fprintf(stderr, "[totk] amiibo: %s%s\n", path, random_uuid ? " (random UUID)" : "");
 }
 void runtime_amiibo_set_path(const char *path) { setting_write("amiibo.txt", path, "amiibo path"); }
 static unsigned nfp_initialize(void) { nfp_state = 1; nfp_dev = 0; nfp_load_dump(); return 0; }
